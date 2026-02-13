@@ -3,7 +3,7 @@
 // ==========================================
 const MQTT_CONFIG = {
   host: "broker.emqx.io",
-  port: 8083, // WebSocket Port
+  port: 8084, // WebSocket Port
   path: "/mqtt",
   topic_control: "projek/belajar/sensoe_suhu_ibnu_bro/control",
   topic_status: "projek/belajar/status/espkipas", // Untuk cek status online ESP
@@ -25,7 +25,7 @@ let espWatchdog = null; // <--- Tambahkan variabel ini
 // ==========================================
 function initMQTT() {
   const clientId = "WebFan_" + Math.random().toString(16).substr(2, 8);
-  const hostUrl = `ws://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
+  const hostUrl = `wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
 
   console.log("Menghubungkan ke MQTT...", hostUrl);
   updateConnectionStatus("loading");
