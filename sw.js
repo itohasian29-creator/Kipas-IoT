@@ -1,4 +1,4 @@
-const CACHE_NAME = "fan-control-v3";
+const CACHE_NAME = "fan-control-v4";
 const urlsToCache = [
   "./",
   "./index.html",
@@ -47,3 +47,4 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
