@@ -3,7 +3,7 @@
 // ==========================================
 const MQTT_CONFIG = {
   host: "broker.emqx.io",
-  port: 8083, // WebSocket Port
+  port: 8084, // WebSocket Port
   path: "/mqtt",
   topic_control: "projek/belajar/sensoe_suhu_ibnu_bro/control",
   topic_status: "projek/belajar/status/espkipas", // Untuk cek status online ESP

@@ -1,14 +1,10 @@
-const CACHE_NAME = "fan-control-v1";
+const CACHE_NAME = "fan-control-v3";
 const urlsToCache = [
   "./",
   "./index.html",
   "./logic.js",
   "./manifest.json",
   "./logoapk.png",
-  "https://cdn.tailwindcss.com",
-  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
-  "https://unpkg.com/mqtt/dist/mqtt.min.js",
-  "https://cdn.jsdelivr.net/npm/sweetalert2@11",
 ];
 
 // Install Service Worker
