@@ -11,8 +11,8 @@ const MQTT_CONFIG = {
 };
 
 const TELEGRAM_CONFIG = {
-  token: "Token Bot Anda", // Token Bot Anda
-  chatId: "ID Chat Anda", // ID Chat Anda
+  token: "7953899272:AAHBmPmT6ETf9Aif7d9drWMH-O7AznHMQWQ", // Token Bot Anda
+  chatId: "1380155017", // ID Chat Anda
 };
 
 let client;
