@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Fan Control</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="shortcut icon" href="logoapk.png" type="image/x-icon">
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-fan {
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-fan:active {
+            transform: scale(0.95);
+        }
+
+        .spin-slow {
+            animation: spin 3s linear infinite;
+        }
+
+        .spin-fast {
+            animation: spin 0.5s linear infinite;
+        }
+
+        .spin-medium {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        /* Animasi Pop-up */
+        @keyframes scale-up {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .open\:animate-scale-up[open] {
+            animation: scale-up 0.2s ease-out forwards;
+        }
+
+        /* Hapus outline default dialog */
+        dialog:focus {
+            outline: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-start p-4">
+
+    <div class="w-full max-w-md flex justify-between items-center mb-6 mt-2">
+        <div>
+            <h1 class="text-xl font-bold text-emerald-400">Fan Controller</h1>
+
+            <div id="connection-info" class="flex items-center gap-2 text-xs text-slate-400 mt-1 transition-all">
+                <div id="status-loading" class="flex items-center gap-2">
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span id="status-text">Menghubungkan...</span>
+                </div>
+
+                <div id="status-data" class="hidden items-center gap-3 text-[10px] font-mono sm:text-xs">
+                    <div class="flex items-center gap-1 text-emerald-300">
+                        <i class="fa-solid fa-wifi"></i>
+                        <span id="wifi-ssid" class="whitespace-nowrap font-bold">...</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-blue-300">
+                        <i class="fa-solid fa-signal"></i>
+                        <span id="wifi-dbm">0dBm</span>
+                    </div>
+                    <div class="text-slate-500">|</div>
+                    <div class="text-slate-300">
+                        Q: <span id="wifi-qual" class="text-emerald-400 font-bold">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-slate-800 p-2 rounded-full border border-slate-700">
+            <i class="fa-solid fa-robot text-emerald-400"></i>
+        </div>
+    </div>
+
+    <div class="w-full max-w-md glass-panel rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
+        <i id="fan-icon-bg" class="fa-solid fa-fan absolute -right-6 -bottom-6 text-9xl text-slate-700/20"></i>
+
+        <div class="flex items-center gap-3 mb-6 relative z-10">
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-600">
+                <i id="fan-icon-main" class="fa-solid fa-fan text-2xl text-slate-400"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-lg">Kontrol Manual</h2>
+                <p id="fan-status-label" class="text-xs text-slate-400">Status: OFF</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-3 relative z-10">
+            <button onclick="setFan(1)" id="btn-1"
+                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">1</button>
+            <button onclick="setFan(2)" id="btn-2"
+                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">2</button>
+            <button onclick="setFan(3)" id="btn-3"
+                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">3</button>
+            <button onclick="setFan(0)" id="btn-0"
+                class="btn-fan h-14 rounded-xl bg-red-900/40 text-red-400 border-red-900/50 font-bold">OFF</button>
+        </div>
+    </div>
+
+    <div class="w-full max-w-md glass-panel rounded-2xl p-5 shadow-lg flex-1 flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-calendar-check text-blue-400"></i> Jadwal Otomatis
+            </h2>
+            <button onclick="openModal()"
+                class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg shadow-blue-500/30 transition">
+                <i class="fa-solid fa-plus mr-1"></i> Tambah
+            </button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 max-h-[400px]">
+            <ul id="schedule-list" class="space-y-3 pb-20 text-center text-sm text-slate-500">
+                <div class="mt-10">
+                    <i class="fa-regular fa-clock text-4xl mb-2 opacity-30"></i>
+                    <p>Memuat data jadwal...</p>
+                </div>
+            </ul>
+        </div>
+    </div>
+
+    <dialog id="modal-add" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
+        <div class="bg-slate-800 w-[90vw] max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
+
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-white text-center">Buat Jadwal Baru</h3>
+
+            <input type="hidden" id="edit-id">
+
+            <label class="text-xs text-slate-400 mb-1 block text-center">Waktu Eksekusi</label>
+            <input type="time" id="input-time"
+                class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white text-lg font-mono mb-4 focus:border-emerald-500 focus:outline-none text-center">
+
+            <label class="text-xs text-slate-400 mb-1 block text-center">Aksi Kipas</label>
+            <div class="grid grid-cols-4 gap-2 mb-4">
+                <label class="cursor-pointer">
+                    <input type="radio" name="speed" value="1" class="peer sr-only" checked>
+                    <div
+                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
+                        1</div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="speed" value="2" class="peer sr-only">
+                    <div
+                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
+                        2</div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="speed" value="3" class="peer sr-only">
+                    <div
+                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
+                        3</div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="speed" value="0" class="peer sr-only">
+                    <div
+                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-red-600 peer-checked:text-white transition">
+                        OFF</div>
+                </label>
+            </div>
+
+            <div class="flex justify-between px-2 mb-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="toggle-today" class="accent-emerald-500 w-4 h-4 rounded"
+                        onchange="toggleToday(this)">
+                    <span class="text-[11px] text-slate-300">Hanya Hari Ini</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="toggle-all" class="accent-blue-500 w-4 h-4 rounded"
+                        onchange="toggleAll(this)">
+                    <span class="text-[11px] text-slate-300">Pilih Semua</span>
+                </label>
+            </div>
+            <label class="text-xs text-slate-400 mb-2 block text-center">Ulangi Hari</label>
+            <div class="flex justify-between mb-6 gap-1">
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="1"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sen</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="2"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sel</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="3"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Rab</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="4"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Kam</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="5"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Jum</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="6"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sab</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="0"><span
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Min</span></label>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeModal()"
+                    class="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition">Batal</button>
+                <button onclick="saveSchedule()"
+                    class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition">Simpan</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="modal-confirm" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
+        <div class="bg-slate-800 w-[85vw] max-w-xs rounded-2xl p-6 border border-slate-700 shadow-2xl text-center">
+            <div class="mb-4 text-amber-500 text-4xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 id="confirm-title" class="text-lg font-bold text-white mb-2">Konfirmasi</h3>
+            <p id="confirm-msg" class="text-sm text-slate-400 mb-6">Apakah Anda yakin?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeConfirm()"
+                    class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 font-bold">Batal</button>
+                <button id="btn-confirm-yes"
+                    class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold shadow-lg shadow-red-600/30">Ya,
+                    Hapus</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="modal-alert" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
+        <div class="bg-slate-800 w-[85vw] max-w-xs rounded-2xl p-6 border border-slate-700 shadow-2xl text-center">
+            <div id="alert-icon" class="mb-4 text-4xl"></div>
+            <h3 id="alert-title" class="text-lg font-bold text-white mb-2"></h3>
+            <p id="alert-msg" class="text-sm text-slate-400 mb-6"></p>
+            <button onclick="document.getElementById('modal-alert').close()"
+                class="w-full py-2 rounded-lg bg-emerald-600 text-white font-bold">OK</button>
+        </div>
+    </dialog>
+
+    <script src="logic.js"></script>
+</body>
+
+</html>
