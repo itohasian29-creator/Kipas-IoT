@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Fan Control</title>
+    <title>Smart Fan Control - Hybrid</title>
 
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
 
+    <!-- Catatan Mode Offline: 
+         Jika ingin 100% offline tanpa cache internet, 
+         Anda harus mengunduh file Tailwind dan FontAwesome ini, 
+         lalu simpan di memori (LittleFS) ESP Anda. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Library MQTT (Hanya bekerja jika ada internet) -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="shortcut icon" href="logoapk.png" type="image/x-icon">
 
     <style>
         body {
@@ -38,66 +40,43 @@
             transform: scale(0.95);
         }
 
-        .spin-slow {
-            animation: spin 3s linear infinite;
-        }
-
-        .spin-fast {
-            animation: spin 0.5s linear infinite;
-        }
-
-        .spin-medium {
-            animation: spin 1s linear infinite;
-        }
+        .spin-slow { animation: spin 3s linear infinite; }
+        .spin-fast { animation: spin 0.5s linear infinite; }
+        .spin-medium { animation: spin 1s linear infinite; }
 
         @keyframes spin {
-            100% {
-                transform: rotate(360deg);
-            }
+            100% { transform: rotate(360deg); }
         }
 
-        /* Hide Scrollbar */
         ::-webkit-scrollbar {
             width: 0px;
             background: transparent;
         }
 
-        /* Animasi Pop-up */
         @keyframes scale-up {
-            0% {
-                transform: scale(0.8);
-                opacity: 0;
-            }
-
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .open\:animate-scale-up[open] {
             animation: scale-up 0.2s ease-out forwards;
         }
 
-        /* Hapus outline default dialog */
-        dialog:focus {
-            outline: none;
-        }
+        dialog:focus { outline: none; }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-start p-4">
 
+    <!-- Header & Status -->
     <div class="w-full max-w-md flex justify-between items-center mb-6 mt-2">
         <div>
             <h1 class="text-xl font-bold text-emerald-400">Fan Controller</h1>
-
             <div id="connection-info" class="flex items-center gap-2 text-xs text-slate-400 mt-1 transition-all">
                 <div id="status-loading" class="flex items-center gap-2">
-                    <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
                     <span id="status-text">Menghubungkan...</span>
                 </div>
-
                 <div id="status-data" class="hidden items-center gap-3 text-[10px] font-mono sm:text-xs">
                     <div class="flex items-center gap-1 text-emerald-300">
                         <i class="fa-solid fa-wifi"></i>
@@ -108,9 +87,7 @@
                         <span id="wifi-dbm">0dBm</span>
                     </div>
                     <div class="text-slate-500">|</div>
-                    <div class="text-slate-300">
-                        Q: <span id="wifi-qual" class="text-emerald-400 font-bold">0%</span>
-                    </div>
+                    <div class="text-slate-300">Q: <span id="wifi-qual" class="text-emerald-400 font-bold">0%</span></div>
                 </div>
             </div>
         </div>
@@ -119,9 +96,9 @@
         </div>
     </div>
 
+    <!-- Panel Kontrol Kipas -->
     <div class="w-full max-w-md glass-panel rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
         <i id="fan-icon-bg" class="fa-solid fa-fan absolute -right-6 -bottom-6 text-9xl text-slate-700/20"></i>
-
         <div class="flex items-center gap-3 mb-6 relative z-10">
             <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-600">
                 <i id="fan-icon-main" class="fa-solid fa-fan text-2xl text-slate-400"></i>
@@ -133,28 +110,23 @@
         </div>
 
         <div class="grid grid-cols-4 gap-3 relative z-10">
-            <button onclick="setFan(1)" id="btn-1"
-                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">1</button>
-            <button onclick="setFan(2)" id="btn-2"
-                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">2</button>
-            <button onclick="setFan(3)" id="btn-3"
-                class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">3</button>
-            <button onclick="setFan(0)" id="btn-0"
-                class="btn-fan h-14 rounded-xl bg-red-900/40 text-red-400 border-red-900/50 font-bold">OFF</button>
+            <button onclick="setFan(1)" id="btn-1" class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">1</button>
+            <button onclick="setFan(2)" id="btn-2" class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">2</button>
+            <button onclick="setFan(3)" id="btn-3" class="btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20">3</button>
+            <button onclick="setFan(0)" id="btn-0" class="btn-fan h-14 rounded-xl bg-red-900/40 text-red-400 border-red-900/50 font-bold">OFF</button>
         </div>
     </div>
 
+    <!-- Panel Jadwal -->
     <div class="w-full max-w-md glass-panel rounded-2xl p-5 shadow-lg flex-1 flex flex-col">
         <div class="flex justify-between items-center mb-4">
             <h2 class="font-bold text-lg flex items-center gap-2">
                 <i class="fa-solid fa-calendar-check text-blue-400"></i> Jadwal Otomatis
             </h2>
-            <button onclick="openModal()"
-                class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg shadow-blue-500/30 transition">
+            <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg shadow-blue-500/30 transition">
                 <i class="fa-solid fa-plus mr-1"></i> Tambah
             </button>
         </div>
-
         <div class="overflow-y-auto flex-1 max-h-[400px]">
             <ul id="schedule-list" class="space-y-3 pb-20 text-center text-sm text-slate-500">
                 <div class="mt-10">
@@ -165,110 +137,402 @@
         </div>
     </div>
 
+    <!-- Modals (Add, Confirm, Alert) -->
+    <!-- [Modal Add Schedule] -->
     <dialog id="modal-add" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
         <div class="bg-slate-800 w-[90vw] max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
-
             <h3 id="modal-title" class="text-xl font-bold mb-4 text-white text-center">Buat Jadwal Baru</h3>
-
             <input type="hidden" id="edit-id">
-
             <label class="text-xs text-slate-400 mb-1 block text-center">Waktu Eksekusi</label>
-            <input type="time" id="input-time"
-                class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white text-lg font-mono mb-4 focus:border-emerald-500 focus:outline-none text-center">
-
+            <input type="time" id="input-time" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white text-lg font-mono mb-4 focus:border-emerald-500 focus:outline-none text-center">
+            
             <label class="text-xs text-slate-400 mb-1 block text-center">Aksi Kipas</label>
             <div class="grid grid-cols-4 gap-2 mb-4">
-                <label class="cursor-pointer">
-                    <input type="radio" name="speed" value="1" class="peer sr-only" checked>
-                    <div
-                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
-                        1</div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="speed" value="2" class="peer sr-only">
-                    <div
-                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
-                        2</div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="speed" value="3" class="peer sr-only">
-                    <div
-                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">
-                        3</div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="speed" value="0" class="peer sr-only">
-                    <div
-                        class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-red-600 peer-checked:text-white transition">
-                        OFF</div>
-                </label>
+                <label class="cursor-pointer"><input type="radio" name="speed" value="1" class="peer sr-only" checked><div class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">1</div></label>
+                <label class="cursor-pointer"><input type="radio" name="speed" value="2" class="peer sr-only"><div class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">2</div></label>
+                <label class="cursor-pointer"><input type="radio" name="speed" value="3" class="peer sr-only"><div class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-emerald-600 peer-checked:text-white transition">3</div></label>
+                <label class="cursor-pointer"><input type="radio" name="speed" value="0" class="peer sr-only"><div class="p-3 rounded-lg bg-slate-700 border border-slate-600 text-center peer-checked:bg-red-600 peer-checked:text-white transition">OFF</div></label>
             </div>
-
+            
             <div class="flex justify-between px-2 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="toggle-today" class="accent-emerald-500 w-4 h-4 rounded"
-                        onchange="toggleToday(this)">
+                    <input type="checkbox" id="toggle-today" class="accent-emerald-500 w-4 h-4 rounded" onchange="toggleToday(this)">
                     <span class="text-[11px] text-slate-300">Hanya Hari Ini</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="toggle-all" class="accent-blue-500 w-4 h-4 rounded"
-                        onchange="toggleAll(this)">
+                    <input type="checkbox" id="toggle-all" class="accent-blue-500 w-4 h-4 rounded" onchange="toggleAll(this)">
                     <span class="text-[11px] text-slate-300">Pilih Semua</span>
                 </label>
             </div>
-            <label class="text-xs text-slate-400 mb-2 block text-center">Ulangi Hari</label>
             <div class="flex justify-between mb-6 gap-1">
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="1"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sen</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="2"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sel</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="3"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Rab</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="4"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Kam</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="5"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Jum</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="6"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sab</span></label>
-                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="0"><span
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Min</span></label>
+                <!-- Checkboxes Hari -->
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="1"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sen</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="2"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sel</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="3"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Rab</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="4"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Kam</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="5"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Jum</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="6"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Sab</span></label>
+                <label class="cursor-pointer"><input type="checkbox" class="day-chk peer sr-only" value="0"><span class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 text-xs peer-checked:bg-blue-600 text-slate-300 peer-checked:text-white">Min</span></label>
             </div>
-
+            
             <div class="flex gap-3">
-                <button onclick="closeModal()"
-                    class="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition">Batal</button>
-                <button onclick="saveSchedule()"
-                    class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition">Simpan</button>
+                <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition">Batal</button>
+                <button onclick="saveSchedule()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition">Simpan</button>
             </div>
         </div>
     </dialog>
 
+    <!-- [Modal Confirm] -->
     <dialog id="modal-confirm" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
         <div class="bg-slate-800 w-[85vw] max-w-xs rounded-2xl p-6 border border-slate-700 shadow-2xl text-center">
             <div class="mb-4 text-amber-500 text-4xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
             <h3 id="confirm-title" class="text-lg font-bold text-white mb-2">Konfirmasi</h3>
             <p id="confirm-msg" class="text-sm text-slate-400 mb-6">Apakah Anda yakin?</p>
             <div class="flex gap-3 justify-center">
-                <button onclick="closeConfirm()"
-                    class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 font-bold">Batal</button>
-                <button id="btn-confirm-yes"
-                    class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold shadow-lg shadow-red-600/30">Ya,
-                    Hapus</button>
+                <button onclick="closeConfirm()" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 font-bold">Batal</button>
+                <button id="btn-confirm-yes" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold shadow-lg shadow-red-600/30">Ya, Hapus</button>
             </div>
         </div>
     </dialog>
 
+    <!-- [Modal Alert] -->
     <dialog id="modal-alert" class="bg-transparent p-0 backdrop:bg-black/80 open:animate-scale-up">
         <div class="bg-slate-800 w-[85vw] max-w-xs rounded-2xl p-6 border border-slate-700 shadow-2xl text-center">
             <div id="alert-icon" class="mb-4 text-4xl"></div>
             <h3 id="alert-title" class="text-lg font-bold text-white mb-2"></h3>
             <p id="alert-msg" class="text-sm text-slate-400 mb-6"></p>
-            <button onclick="document.getElementById('modal-alert').close()"
-                class="w-full py-2 rounded-lg bg-emerald-600 text-white font-bold">OK</button>
+            <button onclick="document.getElementById('modal-alert').close()" class="w-full py-2 rounded-lg bg-emerald-600 text-white font-bold">OK</button>
         </div>
     </dialog>
 
-    <script src="logic.js"></script>
-</body>
+    <!-- ================= LOGIC JAVASCRIPT HYBRID ================= -->
+    <script>
+        const MQTT_CONFIG = {
+            host: "broker.emqx.io",
+            port: 8084, 
+            path: "/mqtt",
+            topic_control: "projek/belajar/sensoe_suhu_ibnu_bro/control",
+            topic_status: "projek/belajar/status/espkipas", 
+            topic_schedule: "projek/belajar/jadwal_kipas_ibnu_storage",
+        };
 
+        const TELEGRAM_CONFIG = {
+            token: "7953899272:AAHBmPmT6ETf9Aif7d9drWMH-O7AznHMQWQ", 
+            chatId: "1380155017", 
+        };
+
+        let client;
+        let schedules = [];
+        let lastExecutedTime = "";
+        let espWatchdog = null; 
+        let deleteTargetId = null;
+
+        // Pengecekan apakah web dibuka dari IP lokal ESP
+        const isLocalHost = (window.location.hostname !== 'itohasian29-creator.github.io' && window.location.hostname !== '');
+
+        function initSystem() {
+            // Coba Konek MQTT (Online Mode)
+            if(typeof mqtt !== 'undefined') {
+                initMQTT();
+            } else {
+                console.warn("MQTT Library tidak termuat (Mungkin Offline). Berjalan di Mode Lokal Saja.");
+                updateConnectionStatus('offline');
+                // Jika offline, coba ambil jadwal dari ESP memory (Lokal Fetch)
+                fetch('/getSchedule')
+                    .then(res => res.json())
+                    .then(data => { schedules = data; renderScheduleList(); })
+                    .catch(e => console.log("Gagal ambil jadwal lokal"));
+            }
+        }
+
+        function initMQTT() {
+            const clientId = "WebFan_" + Math.random().toString(16).substr(2, 8);
+            const hostUrl = `wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
+            
+            updateConnectionStatus("loading");
+            client = mqtt.connect(hostUrl, { keepalive: 60, clientId: clientId, clean: true });
+
+            client.on("connect", () => {
+                updateConnectionStatus("online");
+                client.subscribe(MQTT_CONFIG.topic_control);
+                client.subscribe(MQTT_CONFIG.topic_schedule);
+                client.subscribe(MQTT_CONFIG.topic_status);
+            });
+
+            client.on("message", (topic, message) => {
+                const payload = message.toString();
+                if (topic === MQTT_CONFIG.topic_control) {
+                    updateFanUI(payload);
+                } else if (topic === MQTT_CONFIG.topic_schedule) {
+                    try {
+                        schedules = JSON.parse(payload);
+                        renderScheduleList();
+                    } catch (e) {}
+                } else if (topic === MQTT_CONFIG.topic_status) {
+                    try {
+                        updateWifiDisplay(JSON.parse(payload));
+                        if (espWatchdog) clearTimeout(espWatchdog);
+                        espWatchdog = setTimeout(() => {
+                            updateConnectionStatus("offline");
+                        }, 6000); 
+                    } catch (e) {}
+                }
+            });
+
+            client.on("offline", () => updateConnectionStatus("offline"));
+            client.on("error", () => updateConnectionStatus("offline"));
+        }
+
+        // --- FUNGSI HYBRID KONTROL ---
+        function setFan(speed) {
+            const command = String(speed);
+            
+            // 1. KONTROL OFFLINE / LOKAL HTTP (Selalu coba tembak HTTP jika kita nyambung ke WiFi ESP)
+            fetch(`/kontrol?speed=${command}`)
+                .then(res => console.log("Perintah Lokal Terkirim"))
+                .catch(e => console.log("Bukan koneksi lokal langsung ke ESP"));
+
+            // 2. KONTROL ONLINE (MQTT)
+            if (client && client.connected) {
+                client.publish(MQTT_CONFIG.topic_control, command, { qos: 1, retain: true });
+            }
+
+            // Update UI secara langsung agar responsif di kedua mode
+            updateFanUI(command);
+        }
+
+        function updateFanUI(speedStr) {
+            const speed = parseInt(speedStr);
+            const btns = [0, 1, 2, 3];
+            const icon = document.getElementById("fan-icon-main");
+            const bgIcon = document.getElementById("fan-icon-bg");
+            const statusLabel = document.getElementById("fan-status-label");
+
+            btns.forEach(n => {
+                const btn = document.getElementById(`btn-${n}`);
+                btn.className = "btn-fan h-14 rounded-xl bg-slate-800 font-bold text-slate-300 hover:bg-emerald-600/20";
+                if (n === 0) btn.classList.add("text-red-400", "border-red-900/50");
+            });
+
+            const activeBtn = document.getElementById(`btn-${speed}`);
+            if (activeBtn) {
+                if (speed === 0) {
+                    activeBtn.className = "btn-fan h-14 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/40 transform scale-105";
+                    icon.className = "fa-solid fa-fan text-2xl text-slate-400"; 
+                    bgIcon.className = "fa-solid fa-fan absolute -right-6 -bottom-6 text-9xl text-slate-700/20";
+                    statusLabel.innerText = "Status: OFF";
+                    statusLabel.className = "text-xs text-red-400 font-bold";
+                } else {
+                    activeBtn.className = "btn-fan h-14 rounded-xl bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/40 transform scale-105";
+                    let spinClass = speed === 1 ? "spin-slow" : speed === 2 ? "spin-medium" : "spin-fast";
+                    icon.className = `fa-solid fa-fan text-2xl text-emerald-400 ${spinClass}`;
+                    bgIcon.className = `fa-solid fa-fan absolute -right-6 -bottom-6 text-9xl text-emerald-600/10 ${spinClass}`;
+                    statusLabel.innerText = `Status: SPEED ${speed}`;
+                    statusLabel.className = "text-xs text-emerald-400 font-bold";
+                }
+            }
+        }
+
+        // --- MANAJEMEN JADWAL ---
+        function renderScheduleList() {
+            const list = document.getElementById("schedule-list");
+            list.innerHTML = "";
+            if (schedules.length === 0) {
+                list.innerHTML = `<div class="mt-10 opacity-50"><i class="fa-regular fa-calendar-xmark text-4xl mb-2"></i><p>Belum ada jadwal</p></div>`;
+                return;
+            }
+            schedules.sort((a, b) => a.time.localeCompare(b.time));
+            const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+
+            schedules.forEach(item => {
+                const dayBadges = item.days.map(d => `<span class="${item.days.includes(new Date().getDay()) && d === new Date().getDay() ? 'text-emerald-400 font-bold' : ''}">${dayNames[d]}</span>`).join(", ");
+                const speedColor = item.action == "0" ? "bg-red-500/20 text-red-400" : "bg-emerald-500/20 text-emerald-400";
+                const speedText = item.action == "0" ? "OFF" : `Speed ${item.action}`;
+                const li = document.createElement("li");
+                li.className = "bg-slate-800/50 border border-slate-700 rounded-xl p-3 flex justify-between items-center group";
+                li.innerHTML = `
+                    <div class="text-left flex-1 cursor-pointer" onclick="editSchedule(${item.id})">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xl font-mono font-bold text-white tracking-wider">${item.time}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded ${speedColor} font-bold uppercase">${speedText}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 font-mono tracking-tight">${dayBadges}</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editSchedule(${item.id})" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-blue-500/20 hover:text-blue-400 transition"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteSchedule(${item.id})" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-red-500/20 hover:text-red-400 transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                list.appendChild(li);
+            });
+        }
+
+        function editSchedule(id) {
+            const item = schedules.find(s => s.id === id);
+            if (!item) return;
+            document.getElementById("modal-title").innerText = "Edit Jadwal";
+            document.getElementById("edit-id").value = item.id;
+            document.getElementById("input-time").value = item.time;
+            document.getElementsByName("speed").forEach(r => { if (r.value == item.action) r.checked = true; });
+            document.querySelectorAll(".day-chk").forEach(chk => chk.checked = item.days.includes(parseInt(chk.value)));
+            openModal();
+        }
+
+        function saveSchedule() {
+            const idEdit = document.getElementById("edit-id").value;
+            const time = document.getElementById("input-time").value;
+            const actionEl = document.querySelector('input[name="speed"]:checked');
+            const dayCheckboxes = document.querySelectorAll(".day-chk:checked");
+
+            if (!time || !actionEl || dayCheckboxes.length === 0) {
+                showAlert("Data Kurang", "Mohon lengkapi waktu, kecepatan, dan hari.", "warning");
+                return;
+            }
+            const days = Array.from(dayCheckboxes).map(cb => parseInt(cb.value));
+            const action = actionEl.value;
+
+            if (idEdit) {
+                const index = schedules.findIndex(s => s.id == idEdit);
+                if (index !== -1) {
+                    schedules[index].time = time;
+                    schedules[index].action = action;
+                    schedules[index].days = days;
+                    showAlert("Berhasil", "Jadwal berhasil diperbarui.", "success");
+                }
+            } else {
+                schedules.push({ id: Date.now(), time: time, action: action, days: days, active: true });
+                sendTelegram(`📅 *JADWAL BARU*\nPukul: ${time}\nAksi: Speed ${action}`);
+                showAlert("Tersimpan", "Jadwal baru berhasil disimpan.", "success");
+            }
+            saveToCloud();
+            closeModal();
+            renderScheduleList();
+        }
+
+        function deleteSchedule(id) {
+            deleteTargetId = id;
+            document.getElementById("confirm-title").innerText = "Hapus Jadwal?";
+            document.getElementById("confirm-msg").innerText = "Jadwal ini akan dihapus permanen.";
+            document.getElementById("modal-confirm").showModal();
+        }
+
+        document.getElementById("btn-confirm-yes").onclick = function () {
+            if (deleteTargetId) {
+                schedules = schedules.filter(s => s.id !== deleteTargetId);
+                saveToCloud();
+                renderScheduleList();
+                closeConfirm();
+                showAlert("Terhapus", "Jadwal berhasil dihapus.", "success");
+            }
+        };
+
+        // --- HYBRID SAVE SCHEDULE ---
+        function saveToCloud() {
+            const dataStr = JSON.stringify(schedules);
+            // 1. Simpan via MQTT (Online)
+            if (client && client.connected) {
+                client.publish(MQTT_CONFIG.topic_schedule, dataStr, { qos: 1, retain: true });
+            }
+            // 2. Simpan via HTTP Lokal ESP (Offline/Local)
+            fetch('/saveSchedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: dataStr
+            }).catch(e => console.log("Bukan koneksi lokal"));
+        }
+
+        // --- SCHEDULER & UTILS ---
+        setInterval(() => {
+            const now = new Date();
+            const currentDay = now.getDay();
+            const currentTime = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+
+            schedules.forEach(s => {
+                if (s.active && s.days.includes(currentDay) && s.time === currentTime) {
+                    const triggerKey = `${s.id}-${currentTime}`;
+                    if (lastExecutedTime !== triggerKey) {
+                        setFan(s.action);
+                        sendTelegram(`⏰ *JADWAL TEREKSEKUSI*\n\nWaktu: ${currentTime}\nSistem mengubah kipas ke Speed ${s.action}.`);
+                        lastExecutedTime = triggerKey;
+                    }
+                }
+            });
+        }, 1000);
+
+        function sendTelegram(message) {
+            if(navigator.onLine) {
+                const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+                fetch(url).catch(err => console.log("Gagal kirim telegram (Mungkin Offline)"));
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById("status-dot");
+            const text = document.getElementById("status-text");
+            const loadingDiv = document.getElementById("status-loading");
+            const dataDiv = document.getElementById("status-data");
+
+            if (status === "online") {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]";
+                text.innerText = "Online";
+                text.className = "text-emerald-400 font-bold";
+            } else if (status === "offline") {
+                dataDiv.classList.add("hidden"); dataDiv.classList.remove("flex");
+                loadingDiv.classList.remove("hidden"); loadingDiv.classList.add("flex");
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                text.innerText = "Offline Lokal";
+                text.className = "text-red-400";
+            } else {
+                dataDiv.classList.add("hidden"); dataDiv.classList.remove("flex");
+                loadingDiv.classList.remove("hidden"); loadingDiv.classList.add("flex");
+                dot.className = "w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
+                text.innerText = "Menghubungkan...";
+                text.className = "text-yellow-400";
+            }
+        }
+
+        function updateWifiDisplay(data) {
+            document.getElementById("status-loading").classList.add("hidden");
+            document.getElementById("status-loading").classList.remove("flex");
+            document.getElementById("status-data").classList.remove("hidden");
+            document.getElementById("status-data").classList.add("flex");
+
+            document.getElementById("wifi-ssid").innerText = data.ssid;
+            document.getElementById("wifi-dbm").innerText = data.dbm + "dBm";
+            const qualElem = document.getElementById("wifi-qual");
+            qualElem.innerText = data.qual + "%";
+            qualElem.className = data.qual > 70 ? "text-emerald-400 font-bold" : data.qual > 40 ? "text-yellow-400 font-bold" : "text-red-400 font-bold";
+        }
+
+        function openModal() {
+            document.getElementById("toggle-today").checked = false;
+            document.getElementById("toggle-all").checked = false;
+            document.getElementById("modal-add").showModal();
+        }
+        function closeModal() { document.getElementById("modal-add").close(); }
+        function closeConfirm() { document.getElementById("modal-confirm").close(); deleteTargetId = null; }
+
+        function toggleToday(el) {
+            const checkboxes = document.querySelectorAll(".day-chk");
+            if (el.checked) document.getElementById("toggle-all").checked = false;
+            checkboxes.forEach(chk => chk.checked = el.checked ? parseInt(chk.value) === new Date().getDay() : false);
+        }
+        function toggleAll(el) {
+            if (el.checked) document.getElementById("toggle-today").checked = false;
+            document.querySelectorAll(".day-chk").forEach(chk => chk.checked = el.checked);
+        }
+
+        function showAlert(title, msg, type = "success") {
+            const modal = document.getElementById("modal-alert");
+            const icon = document.getElementById("alert-icon");
+            document.getElementById("alert-title").innerText = title;
+            document.getElementById("alert-msg").innerText = msg;
+            icon.innerHTML = type === "success" ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : 
+                             type === "error" ? '<i class="fa-solid fa-circle-xmark text-red-500"></i>' : 
+                             '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>';
+            modal.showModal();
+        }
+
+        window.onload = initSystem;
+    </script>
+</body>
 </html>
